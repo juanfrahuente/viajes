@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TripBoard • Viajes en Pareja</title>
+  <meta name="description" content="Checklist, mensajes, recordatorios, calendario y enlaces para viajes en pareja."/>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23009999' d='M56 40h144a16 16 0 0 1 16 16v144a16 16 0 0 1-16 16H56a16 16 0 0 1-16-16V56a16 16 0 0 1 16-16zm60 40a12 12 0 1 0 0 24h24a12 12 0 1 0 0-24zm-36 68h96a12 12 0 1 0 0-24H80a12 12 0 0 0 0 24zm0 40h64a12 12 0 1 0 0-24H80a12 12 0 0 0 0 24z'/%3E%3C/svg%3E"/>
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <style>
+    /* Scrollbars suaves */
+    * { scrollbar-width: thin; scrollbar-color: #94a3b8 transparent; }
+    ::-webkit-scrollbar { height: 8px; width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <!-- App Shell -->
+  <div id="app" class="min-h-screen">
+    <!-- Header -->
+    <header class="sticky top-0 z-30 flex items-center justify-between bg-white/80 backdrop-blur-sm border-b border-slate-200 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-2xl bg-teal-600 flex items-center justify-center text-white font-bold">TB</div>
+        <h1 class="text-lg md:text-xl font-semibold">TripBoard — Viajes en Pareja</h1>
+        <span class="ml-2 text-xs text-slate-500 hidden md:inline">Checklist · Mensajes · Recordatorios · Calendario · Enlaces</span>
+      </div>
+      <div id="user-controls" class="flex items-center gap-2">
+        <span id="user-email" class="text-sm text-slate-700"></span>
+        <button id="btn-logout" class="hidden rounded-xl bg-slate-900 text-white text-sm px-3 py-2 hover:bg-slate-800">Salir</button>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-0">
+      <!-- Sidebar -->
+      <aside class="md:h-[calc(100vh-56px)] md:sticky md:top-[56px] bg-white border-r border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-semibold text-slate-800">Tus viajes</h2>
+          <button id="btn-new-trip" class="rounded-xl bg-teal-600 text-white text-sm px-3 py-2 hover:bg-teal-700">+ Nuevo</button>
+        </div>
+        <div id="trips-list" class="space-y-2 overflow-y-auto max-h-[50vh] pr-1"></div>
+
+        <div class="mt-6 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+          <h3 class="font-medium text-slate-800 mb-2">Unirse con código</h3>
+          <div class="flex gap-2">
+            <input id="join-code" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Código de viaje"/>
+            <button id="btn-join" class="rounded-xl bg-slate-900 text-white text-sm px-3 py-2 hover:bg-slate-800">Unirse</button>
+          </div>
+          <p class="mt-2 text-xs text-slate-500">Pide el código a tu pareja. Al unirte, ambos verán y editarán el viaje.</p>
+        </div>
+
+        <div class="mt-6 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+          <h3 class="font-medium text-slate-800 mb-1">Tips rápidos</h3>
+          <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+            <li>Cambiar 60% R$ en Chile y 40% en Brasil.</li>
+            <li>Usar Uber; guardar documentos en la nube.</li>
+            <li>Portugués: “Pode falar mais devagar, por favor?”</li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <main class="p-4">
+        <!-- Auth Gate -->
+        <section id="auth-view" class="max-w-md mx-auto hidden">
+          <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-xl font-semibold mb-1">Inicia sesión o crea tu cuenta</h2>
+            <p class="text-sm text-slate-600 mb-4">Solo necesitas un correo para compartir viajes con tu pareja.</p>
+            <div class="space-y-3">
+              <input id="email" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Correo"/>
+              <input id="password" type="password" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Contraseña"/>
+              <div class="flex gap-2">
+                <button id="btn-login" class="flex-1 rounded-xl bg-slate-900 text-white text-sm px-3 py-2 hover:bg-slate-800">Entrar</button>
+                <button id="btn-register" class="flex-1 rounded-xl bg-slate-100 text-slate-900 text-sm px-3 py-2 hover:bg-slate-200">Crear cuenta</button>
+              </div>
+              <button id="btn-google" class="w-full rounded-xl bg-white border border-slate-300 text-slate-900 text-sm px-3 py-2 hover:bg-slate-50">Entrar con Google</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- App View -->
+        <section id="app-view" class="hidden">
+          <div id="active-trip" class="rounded-3xl border border-slate-200 bg-white shadow-sm p-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h2 id="trip-title" class="text-xl font-semibold">Selecciona o crea un viaje</h2>
+                <p id="trip-info" class="text-sm text-slate-600"></p>
+                <p id="trip-code" class="text-xs text-slate-500"></p>
+              </div>
+              <div class="flex gap-2">
+                <button id="btn-add-link" class="rounded-xl bg-slate-100 text-slate-900 text-sm px-3 py-2 hover:bg-slate-200">+ Enlace</button>
+                <button id="btn-share" class="rounded-xl bg-teal-600 text-white text-sm px-3 py-2 hover:bg-teal-700">Compartir</button>
+              </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="mt-4 border-b border-slate-200 flex gap-4 overflow-x-auto" id="tabs">
+              <button data-tab="checklist" class="tab-btn px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-300">Checklist</button>
+              <button data-tab="mensajes" class="tab-btn px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-300">Mensajes</button>
+              <button data-tab="recordatorios" class="tab-btn px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-300">Recordatorios</button>
+              <button data-tab="calendario" class="tab-btn px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-300">Calendario</button>
+              <button data-tab="enlaces" class="tab-btn px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-300">Enlaces</button>
+              <button data-tab="tips" class="tab-btn px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-300">Tips</button>
+            </div>
+
+            <!-- Panels -->
+            <div id="panel-checklist" class="tab-panel mt-4 hidden">
+              <div class="flex gap-2 mb-3">
+                <input id="new-item" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Agregar ítem…"/>
+                <button id="btn-add-item" class="rounded-xl bg-slate-900 text-white text-sm px-3 py-2 hover:bg-slate-800">Agregar</button>
+              </div>
+              <ul id="checklist" class="space-y-2"></ul>
+            </div>
+
+            <div id="panel-mensajes" class="tab-panel mt-4 hidden">
+              <div id="messages" class="h-64 overflow-y-auto rounded-xl border border-slate-200 p-3 bg-slate-50"></div>
+              <div class="flex gap-2 mt-3">
+                <input id="msg-text" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Escribe un mensaje…"/>
+                <button id="btn-send-msg" class="rounded-xl bg-teal-600 text-white text-sm px-3 py-2 hover:bg-teal-700">Enviar</button>
+              </div>
+            </div>
+
+            <div id="panel-recordatorios" class="tab-panel mt-4 hidden">
+              <div class="flex flex-col md:flex-row gap-2">
+                <input id="rem-title" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Título del recordatorio…"/>
+                <input id="rem-due" type="datetime-local" class="rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
+                <button id="btn-add-rem" class="rounded-xl bg-slate-900 text-white text-sm px-3 py-2 hover:bg-slate-800">Agregar</button>
+              </div>
+              <ul id="reminders" class="space-y-2 mt-3"></ul>
+            </div>
+
+            <div id="panel-calendario" class="tab-panel mt-4 hidden">
+              <div id="calendar" class="rounded-2xl border border-slate-200 p-2 bg-slate-50"></div>
+            </div>
+
+            <div id="panel-enlaces" class="tab-panel mt-4 hidden">
+              <div class="flex gap-2 mb-3">
+                <input id="link-label" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Etiqueta (ej. Vuelos LATAM)"/>
+                <input id="link-url" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="URL (https://...)"/>
+                <button id="btn-save-link" class="rounded-xl bg-slate-900 text-white text-sm px-3 py-2 hover:bg-slate-800">Guardar</button>
+              </div>
+              <ul id="links" class="space-y-2"></ul>
+            </div>
+
+            <div id="panel-tips" class="tab-panel mt-4 hidden">
+              <div class="prose max-w-none">
+                <h3 class="font-semibold text-slate-800 mb-2">Tips esenciales</h3>
+                <ul class="list-disc pl-5 space-y-1">
+                  <li>Cambiar ~60% de R$ en Chile y ~40% en casas de câmbio del centro de Floripa.</li>
+                  <li>Preferir pagos en reales (R$) al usar tarjeta; evita la “conversión dinámica”.</li>
+                  <li>Frases útiles: “Pode falar mais devagar, por favor?”, “Quanto custa?”, “Obrigado/a”.</li>
+                  <li>Seguridad: no dejen objetos solos en la playa. Usa bolsita impermeable para el cel.</li>
+                  <li>Transporte: Uber funciona muy bien. Buses son baratos pero lentos.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Firebase (Compat SDKs para simplicidad en un solo archivo) -->
+  <!-- 1) Reemplaza los valores de firebaseConfig con tu proyecto -->
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <script type="module">
+    // Esperar a que carguen los SDKs compat
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    await wait(400);
+
+    // TODO: Pega aquí tu configuración de Firebase
+    // Crea proyecto: console.firebase.google.com -> Agregar app web -> Copia config
+    const firebaseConfig = {
+      apiKey: "PEGAR_AQUI",
+      authDomain: "PEGAR_AQUI",
+      projectId: "PEGAR_AQUI",
+      storageBucket: "PEGAR_AQUI",
+      messagingSenderId: "PEGAR_AQUI",
+      appId: "PEGAR_AQUI"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // UI helpers
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    const authView = $("#auth-view");
+    const appView = $("#app-view");
+    const userEmailEl = $("#user-email");
+    const logoutBtn = $("#btn-logout");
+    const tripsList = $("#trips-list");
+    const tripTitle = $("#trip-title");
+    const tripInfo = $("#trip-info");
+    const tripCodeEl = $("#trip-code");
+
+    let currentUser = null;
+    let activeTripId = null;
+    let calendar = null;
+
+    // ---------- Auth UI ----------
+    $("#btn-login")?.addEventListener("click", async () => {
+      const email = $("#email").value.trim();
+      const pass = $("#password").value;
+      if(!email || !pass) return alert("Completa correo y contraseña.");
+      try { await auth.signInWithEmailAndPassword(email, pass); } 
+      catch(e){ alert(e.message); }
+    });
+
+    $("#btn-register")?.addEventListener("click", async () => {
+      const email = $("#email").value.trim();
+      const pass = $("#password").value;
+      if(!email || !pass) return alert("Completa correo y contraseña.");
+      try { await auth.createUserWithEmailAndPassword(email, pass); } 
+      catch(e){ alert(e.message); }
+    });
+
+    $("#btn-google")?.addEventListener("click", async () => {
+      try { 
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await auth.signInWithPopup(provider);
+      } catch(e){ alert(e.message); }
+    });
+
+    logoutBtn?.addEventListener("click", async () => { await auth.signOut(); });
+
+    auth.onAuthStateChanged(async (user) => {
+      currentUser = user;
+      if(user){
+        userEmailEl.textContent = user.email || "";
+        $("#btn-logout").classList.remove("hidden");
+        authView.classList.add("hidden");
+        appView.classList.remove("hidden");
+        loadTrips();
+      } else {
+        userEmailEl.textContent = "";
+        $("#btn-logout").classList.add("hidden");
+        appView.classList.add("hidden");
+        authView.classList.remove("hidden");
+        tripsList.innerHTML = "";
+      }
+    });
+
+    // ---------- Trips ----------
+    async function loadTrips(){
+      tripsList.innerHTML = "";
+      activeTripId = null;
+      tripTitle.textContent = "Selecciona o crea un viaje";
+      tripInfo.textContent = "";
+      tripCodeEl.textContent = "";
+      // Consultar viajes donde el usuario es miembro
+      const snap = await db.collection("trips")
+        .where("members", "array-contains", currentUser.uid)
+        .orderBy("startDate", "desc")
+        .get();
+
+      if(snap.empty){
+        tripsList.innerHTML = "<p class='text-sm text-slate-500'>Aún no tienes viajes. Crea uno nuevo.</p>";
+      } else {
+        snap.forEach(doc => {
+          const t = doc.data();
+          const li = document.createElement("button");
+          li.className = "w-full text-left rounded-xl border border-slate-200 hover:bg-slate-50 px-3 py-2";
+          li.innerHTML = \`<div class="font-medium">\${t.name || t.destination || "Viaje"}</div>
+                           <div class="text-xs text-slate-500">\${formatDate(t.startDate?.toDate())} – \${formatDate(t.endDate?.toDate())}</div>\`;
+          li.addEventListener("click", () => selectTrip(doc.id, t));
+          tripsList.appendChild(li);
+        });
+      }
+    }
+
+    function shortCode(len=6){
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      return Array.from({length: len}, () => chars[Math.floor(Math.random()*chars.length)]).join("");
+    }
+
+    $("#btn-new-trip")?.addEventListener("click", async () => {
+      const name = prompt("Nombre del viaje (ej. Florianópolis en pareja):")?.trim();
+      if(!name) return;
+      const destination = prompt("Destino (ej. Florianópolis):")?.trim() || name;
+      const start = prompt("Fecha de inicio (YYYY-MM-DD):")?.trim();
+      const end = prompt("Fecha de término (YYYY-MM-DD):")?.trim();
+      let startDate = start ? new Date(start) : new Date();
+      let endDate = end ? new Date(end) : new Date(Date.now() + 3*24*60*60*1000);
+      const code = shortCode();
+      const ref = await db.collection("trips").add({
+        name, destination, startDate, endDate, code,
+        owner: currentUser.uid,
+        members: [currentUser.uid],
+        createdAt: new Date()
+      });
+      await loadTrips();
+      const doc = await ref.get();
+      selectTrip(ref.id, doc.data());
+      alert("¡Viaje creado! Comparte el código: " + code);
+    });
+
+    $("#btn-join")?.addEventListener("click", async () => {
+      const code = $("#join-code").value.trim().toUpperCase();
+      if(!code) return;
+      const q = await db.collection("trips").where("code", "==", code).limit(1).get();
+      if(q.empty) return alert("Código inválido.");
+      const doc = q.docs[0];
+      const t = doc.data();
+      if(!(t.members || []).includes(currentUser.uid)){
+        await doc.ref.update({ members: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
+      }
+      $("#join-code").value = "";
+      await loadTrips();
+      selectTrip(doc.id, t);
+    });
+
+    function selectTrip(id, t){
+      activeTripId = id;
+      tripTitle.textContent = t.name || t.destination || "Viaje";
+      tripInfo.textContent = \`\${t.destination || ""} · \${formatDate(t.startDate?.toDate())} – \${formatDate(t.endDate?.toDate())}\`;
+      tripCodeEl.textContent = "Código de viaje: " + (t.code || "");
+      // Load panels
+      activateTab("checklist");
+      bindChecklist();
+      bindMessages();
+      bindReminders();
+      bindLinks();
+      renderCalendar(t);
+    }
+
+    function formatDate(d){
+      if(!d) return "";
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return \`\${day}-\${m}-\${y}\`;
+    }
+
+    // ---------- Tabs ----------
+    function activateTab(name){
+      $$(".tab-panel").forEach(el => el.classList.add("hidden"));
+      $$("#tabs .tab-btn").forEach(btn => btn.classList.remove("border-slate-900","text-slate-900"));
+      $(`#panel-\${name}`)?.classList.remove("hidden");
+      $(`#tabs [data-tab="\${name}"]`)?.classList.add("border-slate-900","text-slate-900");
+    }
+    $$("#tabs .tab-btn").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
+
+    // ---------- Checklist ----------
+    async function bindChecklist(){
+      const ul = $("#checklist");
+      const input = $("#new-item");
+      const addBtn = $("#btn-add-item");
+      ul.innerHTML = "";
+
+      const ref = db.collection("trips").doc(activeTripId).collection("checklist").orderBy("createdAt","asc");
+      ref.onSnapshot((snap) => {
+        ul.innerHTML = "";
+        snap.forEach(doc => {
+          const it = doc.data();
+          const li = document.createElement("li");
+          li.className = "flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2";
+          li.innerHTML = \`
+            <input type="checkbox" \${it.done ? "checked" : ""} class="h-4 w-4">
+            <span class="flex-1 text-sm \${it.done ? "line-through text-slate-400" : ""}">\${it.text}</span>
+            <button class="text-xs text-slate-500 hover:text-red-600">Eliminar</button>
+          \`;
+          const [checkbox, , delBtn] = li.children;
+          checkbox.addEventListener("change", () => doc.ref.update({done: checkbox.checked}));
+          delBtn.addEventListener("click", () => doc.ref.delete());
+          ul.appendChild(li);
+        });
+      });
+
+      addBtn.onclick = async () => {
+        const text = input.value.trim();
+        if(!text) return;
+        await db.collection("trips").doc(activeTripId).collection("checklist").add({
+          text, done:false, createdAt: new Date()
+        });
+        input.value = "";
+      };
+    }
+
+    // ---------- Messages ----------
+    async function bindMessages(){
+      const box = $("#messages");
+      const input = $("#msg-text");
+      const sendBtn = $("#btn-send-msg");
+      box.innerHTML = "";
+      const ref = db.collection("trips").doc(activeTripId).collection("messages").orderBy("createdAt","asc");
+      ref.onSnapshot((snap) => {
+        box.innerHTML = "";
+        snap.forEach(doc => {
+          const m = doc.data();
+          const me = currentUser?.uid === m.userId;
+          const wrap = document.createElement("div");
+          wrap.className = "flex " + (me ? "justify-end" : "justify-start");
+          wrap.innerHTML = \`
+            <div class="max-w-[80%] my-1 px-3 py-2 rounded-2xl text-sm \${me?"bg-teal-600 text-white":"bg-white border border-slate-200"}">
+              <div class="text-[11px] opacity-80 mb-0.5">\${m.userName || "Usuario"}</div>
+              <div>\${m.text}</div>
+            </div>
+          \`;
+          box.appendChild(wrap);
+          box.scrollTop = box.scrollHeight;
+        });
+      });
+
+      sendBtn.onclick = async () => {
+        const text = input.value.trim();
+        if(!text) return;
+        await db.collection("trips").doc(activeTripId).collection("messages").add({
+          text, userId: currentUser.uid, userName: currentUser.email || "usuario", createdAt: new Date()
+        });
+        input.value = "";
+      };
+    }
+
+    // ---------- Reminders ----------
+    async function bindReminders(){
+      const ul = $("#reminders");
+      const title = $("#rem-title");
+      const due = $("#rem-due");
+      const add = $("#btn-add-rem");
+      ul.innerHTML = "";
+
+      const ref = db.collection("trips").doc(activeTripId).collection("reminders").orderBy("dueAt","asc");
+      ref.onSnapshot((snap) => {
+        ul.innerHTML = "";
+        snap.forEach(doc => {
+          const r = doc.data();
+          const li = document.createElement("li");
+          li.className = "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2";
+          li.innerHTML = \`
+            <input type="checkbox" \${r.done ? "checked" : ""} class="h-4 w-4">
+            <div class="flex-1">
+              <div class="text-sm font-medium">\${r.title}</div>
+              <div class="text-xs text-slate-500">\${new Date(r.dueAt?.toDate ? r.dueAt.toDate() : r.dueAt).toLocaleString()}</div>
+            </div>
+            <button class="text-xs text-slate-500 hover:text-red-600">Eliminar</button>
+          \`;
+          const [checkbox, , delBtn] = li.children;
+          checkbox.addEventListener("change", () => doc.ref.update({done: checkbox.checked}));
+          delBtn.addEventListener("click", () => doc.ref.delete());
+          ul.appendChild(li);
+        });
+      });
+
+      add.onclick = async () => {
+        const t = title.value.trim();
+        const d = due.value ? new Date(due.value) : null;
+        if(!t || !d) return alert("Completa título y fecha/hora.");
+        await db.collection("trips").doc(activeTripId).collection("reminders").add({
+          title: t, dueAt: d, done:false, createdAt: new Date()
+        });
+        title.value = ""; due.value = "";
+      };
+    }
+
+    // ---------- Links ----------
+    async function bindLinks(){
+      const ul = $("#links");
+      const label = $("#link-label");
+      const url = $("#link-url");
+      const save = $("#btn-save-link");
+      ul.innerHTML = "";
+
+      const tripRef = db.collection("trips").doc(activeTripId);
+      const doc = await tripRef.get();
+      const data = doc.data() || {};
+      const links = data.links || [];
+      renderLinks(links);
+
+      save.onclick = async () => {
+        const l = (label.value || "").trim();
+        const u = (url.value || "").trim();
+        if(!l || !u) return;
+        links.push({label:l, url:u});
+        await tripRef.update({links});
+        label.value = ""; url.value = "";
+        renderLinks(links);
+      };
+
+      function renderLinks(list){
+        ul.innerHTML = "";
+        list.forEach((lnk, idx) => {
+          const li = document.createElement("li");
+          li.className = "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2";
+          li.innerHTML = \`
+            <div class="flex-1">
+              <a href="\${lnk.url}" target="_blank" class="text-sm text-teal-700 underline underline-offset-2">\${lnk.label}</a>
+              <div class="text-xs text-slate-500 break-all">\${lnk.url}</div>
+            </div>
+            <button class="text-xs text-slate-500 hover:text-red-600">Eliminar</button>
+          \`;
+          li.querySelector("button").addEventListener("click", async () => {
+            links.splice(idx,1);
+            await tripRef.update({links});
+            renderLinks(links);
+          });
+          ul.appendChild(li);
+        });
+      }
+    }
+
+    // ---------- Share ----------
+    $("#btn-share")?.addEventListener("click", async () => {
+      if(!activeTripId) return;
+      const codeSnap = await db.collection("trips").doc(activeTripId).get();
+      alert("Comparte este código con tu pareja para unirse al viaje:\n\n" + (codeSnap.data()?.code || "—"));
+    });
+
+    // ---------- Calendar ----------
+    function renderCalendar(trip){
+      const el = document.getElementById("calendar");
+      el.innerHTML = "";
+      const start = trip.startDate?.toDate ? trip.startDate.toDate() : new Date(trip.startDate);
+      const end = trip.endDate?.toDate ? trip.endDate.toDate() : new Date(trip.endDate);
+      const tripEvent = {
+        id: "trip-range",
+        title: trip.name || trip.destination || "Viaje",
+        start: start.toISOString().slice(0,10),
+        end: new Date(end.getTime()+24*60*60*1000).toISOString().slice(0,10),
+        allDay: true
+      };
+
+      calendar = new FullCalendar.Calendar(el, {
+        initialView: 'dayGridMonth',
+        height: "auto",
+        selectable: true,
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek'
+        },
+        events: [tripEvent],
+      });
+
+      // Añadir recordatorios como eventos
+      db.collection("trips").doc(activeTripId).collection("reminders").get().then((snap) => {
+        snap.forEach(doc => {
+          const r = doc.data();
+          const due = r.dueAt?.toDate ? r.dueAt.toDate() : new Date(r.dueAt);
+          calendar.addEvent({ title: "🔔 " + r.title, start: due, allDay: false });
+        });
+      });
+
+      calendar.render();
+    }
+  </script>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-slate-500 py-6">
+    Hecho con ❤️ para organizar viajes en pareja • TripBoard
+  </footer>
+</body>
+</html>
